@@ -5,7 +5,7 @@ Aplikasi Mobile Flutter untuk pelaporan dan pengelolaan perbaikan fasilitas kamp
 
 ---
 
-## 👥 Pembagian Kontribusi Tim & Pembagian Tugas (Kontributor)
+##  Pembagian Kontribusi Tim & Pembagian Tugas (Kontributor)
 
 | No | Nama Anggota | Peran & Modul Utama | Tanggung Jawab & Layar yang Dibuat |
 |:--:|:---|:---|:---|
@@ -15,7 +15,7 @@ Aplikasi Mobile Flutter untuk pelaporan dan pengelolaan perbaikan fasilitas kamp
 
 ---
 
-## 🔄 3 Alur Pengguna Utama (User Flow)
+##  3 Alur Pengguna Utama (User Flow)
 
 1. **Alur Pelaporan Barang Rusak**:
    - Pengguna masuk (Login) $\rightarrow$ Membuka Dashboard $\rightarrow$ Mengetuk "Buat laporan baru" $\rightarrow$ Mengisi form (Judul, Lokasi Fakultas, Kategori, Urgensi, Foto Bukti) $\rightarrow$ Laporan terkirim dan masuk ke sistem.
@@ -26,7 +26,7 @@ Aplikasi Mobile Flutter untuk pelaporan dan pengelolaan perbaikan fasilitas kamp
 
 ---
 
-## 📊 Data Dummy & Simulasi (Mock Data & Reference Module)
+## Data Dummy & Simulasi (Mock Data & Reference Module)
 
 - **5 Record Referensi Kategori Fasilitas**: Elektronik & Audio Visual, Pendingin Ruangan (AC), Mebel Kelas, Sanitasi/Toilet, Jaringan & IT.
 - **5 Record Referensi Lokasi Fakultas & Area Kampus**: Fakultas Ilmu Komputer (FIK), Fakultas Teknik (FT), Fakultas Ekonomi & Bisnis (FEB), Gedung Rektorat, Perpustakaan Pusat & PKM.
@@ -34,7 +34,7 @@ Aplikasi Mobile Flutter untuk pelaporan dan pengelolaan perbaikan fasilitas kamp
 
 ---
 
-## 🚀 Panduan Setup & Perintah Run
+## Panduan Setup & Perintah Run
 
 1. **Prasyarat**: Flutter SDK (`^3.13.2`+) dan Emulator/Android Studio.
 2. **Instal Dependensi**:
