@@ -27,7 +27,7 @@ class DetailReportScreen extends StatelessWidget {
                     builder: (context) => FormReportScreen(report: report),
                   ),
                 );
-                if (updatedReport != null) {
+                if (updatedReport != null && context.mounted) {
                   Navigator.pop(context, {
                     'action': 'update',
                     'data': updatedReport,
