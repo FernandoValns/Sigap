@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'report_form_page.dart';
+import 'form_report_screen.dart';
+import 'category_location_list_screen.dart';
 
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
@@ -51,6 +52,8 @@ class DashboardView extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             _buildCampusInsight(),
+            const SizedBox(height: 14),
+            _buildMasterDataCard(context),
             const SizedBox(height: 28),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -129,7 +132,7 @@ class DashboardView extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const ReportFormPage(),
+                    builder: (context) => const FormReportScreen(),
                   ),
                 );
               },
@@ -187,6 +190,79 @@ class DashboardView extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMasterDataCard(BuildContext context) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CategoryLocationListScreen(),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFF0F766E).withValues(alpha: 0.25),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F766E).withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F766E).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.folder_shared_rounded,
+                color: Color(0xFF0F766E),
+                size: 26,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Kategori & Lokasi Gedung (Anggota 3)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: Color(0xFF102A43),
+                    ),
+                  ),
+                  SizedBox(height: 3),
+                  Text(
+                    'Kelola master data fasilitas & 20 laporan dummy',
+                    style: TextStyle(color: Color(0xFF627D98), fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF0F766E),
+            ),
+          ],
+        ),
       ),
     );
   }

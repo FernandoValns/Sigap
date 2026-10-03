@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'edit_profile_view.dart';
 import 'history_view.dart';
+import 'category_location_list_screen.dart';
 
 class ProfileView extends StatelessWidget {
   const ProfileView({super.key});
@@ -99,6 +100,25 @@ class ProfileView extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const HistoryView()),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Master Data & Referensi (Anggota 3)',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          _buildMenuTile(
+            icon: Icons.folder_shared_rounded,
+            title: 'Kategori & Lokasi Gedung',
+            subtitle: 'Kelola master kategori fasilitas dan lokasi kampus (20 Dummy Laporan & 5 Referensi)',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CategoryLocationListScreen(),
+                ),
               );
             },
           ),
