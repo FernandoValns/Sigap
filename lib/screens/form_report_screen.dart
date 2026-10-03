@@ -191,7 +191,7 @@ class _FormReportScreenState extends State<FormReportScreen> {
               const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Kategori Kerusakan',
                   border: OutlineInputBorder(),
@@ -204,7 +204,7 @@ class _FormReportScreenState extends State<FormReportScreen> {
               const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
-                value: _selectedUrgency,
+                initialValue: _selectedUrgency,
                 decoration: const InputDecoration(
                   labelText: 'Tingkat Urgensi',
                   border: OutlineInputBorder(),
