@@ -21,7 +21,7 @@ class SigapApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF007C83),
+          seedColor: const Color(0xFF001FA1),
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: const Color(0xFFF5F8F8),
@@ -175,7 +175,7 @@ class _DashboardMahasiswaState extends State<DashboardMahasiswa> {
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF006D77), Color(0xFF00A6A6)],
+                        colors: [Color(0xFF001FA1), Color(0xFF0068BD)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -227,7 +227,7 @@ class _DashboardMahasiswaState extends State<DashboardMahasiswa> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF006D77),
+                        backgroundColor: const Color(0xFF001FA1),
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -439,52 +439,126 @@ class _DashboardMahasiswaState extends State<DashboardMahasiswa> {
   }
 
   Future<void> _showEditProfileDialog() async {
-    final nameController = TextEditingController(text: _userName);
-    final studyController = TextEditingController(text: _studyProgram);
-
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ubah data diri'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Nama lengkap'),
-            ),
-            TextField(
-              controller: studyController,
-              decoration: const InputDecoration(labelText: 'Program studi'),
+      builder: (dialogContext) {
+        return EditProfileDialog(
+          initialName: _userName,
+          initialStudy: _studyProgram,
+          onSave: (newName, newStudy) {
+            setState(() {
+              _userName = newName;
+              _studyProgram = newStudy;
+            });
+          },
+        );
+      },
+    );
+  }
+}
+
+class EditProfileDialog extends StatefulWidget {
+  final String initialName;
+  final String initialStudy;
+  final Function(String name, String study) onSave;
+
+  const EditProfileDialog({
+    super.key,
+    required this.initialName,
+    required this.initialStudy,
+    required this.onSave,
+  });
+
+  @override
+  State<EditProfileDialog> createState() => _EditProfileDialogState();
+}
+
+class _EditProfileDialogState extends State<EditProfileDialog> {
+  late TextEditingController _nameController;
+  late TextEditingController _studyController;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inisialisasi Controller saat dialog dibuka
+    _nameController = TextEditingController(text: widget.initialName);
+    _studyController = TextEditingController(text: widget.initialStudy);
+  }
+
+  @override
+  void dispose() {
+    // Controller dihancurkan secara aman sesuai lifecycle widget dialog
+    _nameController.dispose();
+    _studyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Ubah data diri'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_errorMessage != null) ...[
+            Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(labelText: 'Nama lengkap'),
           ),
-          FilledButton(
-            onPressed: () {
-              if (nameController.text.trim().isEmpty ||
-                  studyController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Data diri wajib diisi.')),
-                );
-                return;
-              }
-              setState(() {
-                _userName = nameController.text.trim();
-                _studyProgram = studyController.text.trim();
-              });
-              Navigator.pop(context);
-            },
-            child: const Text('Simpan'),
+          const SizedBox(height: 18),
+          TextField(
+            controller: _studyController,
+            decoration: const InputDecoration(labelText: 'Program studi'),
           ),
         ],
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final nameText = _nameController.text.trim();
+            final studyText = _studyController.text.trim();
+
+            if (nameText.isEmpty || studyText.isEmpty) {
+              setState(() {
+                _errorMessage = 'Data diri wajib diisi.';
+              });
+              return;
+            }
+
+            // Simpan perubahan ke parent widget
+            widget.onSave(nameText, studyText);
+            Navigator.pop(context);
+          },
+          child: const Text('Simpan'),
+        ),
+      ],
     );
-    nameController.dispose();
-    studyController.dispose();
   }
 }
