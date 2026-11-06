@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/report.dart';
+import '../data/mock_data.dart';
 
 class FormReportScreen extends StatefulWidget {
   final Report? report;
@@ -18,37 +20,41 @@ class _FormReportScreenState extends State<FormReportScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _titleController;
-  late TextEditingController _locationController;
   late TextEditingController _descriptionController;
 
-  String _selectedCategory = 'Fasilitas Kelas';
+  List<String> get _categories => MockData.categories.map((c) => c.name).toList();
+  List<String> get _locations => MockData.locations.map((l) => l.name).toList();
+
+  late String _selectedCategory;
+  late String _selectedLocation;
   String _selectedUrgency = 'Sedang';
 
   // State untuk menyimpan foto yang dipilih
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
-  final List<String> _categories = [
-    'Fasilitas Kelas',
-    'Elektronik',
-    'Toilet',
-    'Lainnya',
-  ];
   final List<String> _urgencies = ['Rendah', 'Sedang', 'Tinggi'];
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.report?.title ?? '');
-    _locationController = TextEditingController(
-      text: widget.report?.location ?? '',
-    );
     _descriptionController = TextEditingController(
       text: widget.report?.description ?? '',
     );
 
+    _selectedCategory = _categories.isNotEmpty ? _categories.first : '';
+    _selectedLocation = _locations.isNotEmpty ? _locations.first : '';
+
     if (widget.report != null) {
-      _selectedCategory = widget.report!.category;
+      if (_categories.contains(widget.report!.category)) {
+        _selectedCategory = widget.report!.category;
+      }
+      if (_locations.contains(widget.report!.location)) {
+        _selectedLocation = widget.report!.location;
+      } else {
+        _selectedLocation = widget.report!.location;
+      }
       _selectedUrgency = widget.report!.urgency;
       if (widget.report!.imagePath != null) {
         _selectedImage = File(widget.report!.imagePath!);
@@ -91,7 +97,7 @@ class _FormReportScreenState extends State<FormReportScreen> {
             widget.report?.id ??
             DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
-        location: _locationController.text,
+        location: _selectedLocation,
         category: _selectedCategory,
         urgency: _selectedUrgency,
         description: _descriptionController.text,
@@ -141,11 +147,17 @@ class _FormReportScreenState extends State<FormReportScreen> {
                   child: _selectedImage != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            _selectedImage!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
+                          child: kIsWeb
+                              ? Image.network(
+                                  _selectedImage!.path,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                )
+                              : Image.file(
+                                  _selectedImage!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                ),
                         )
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -178,15 +190,17 @@ class _FormReportScreenState extends State<FormReportScreen> {
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _locationController,
+              DropdownButtonFormField<String>(
+                isExpanded: true,
+                value: _selectedLocation,
                 decoration: const InputDecoration(
                   labelText: 'Lokasi / Gedung*',
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) => (value == null || value.isEmpty)
-                    ? 'Lokasi tidak boleh kosong'
-                    : null,
+                items: _locations
+                    .map((l) => DropdownMenuItem(value: l, child: Text(l, overflow: TextOverflow.ellipsis,)))
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedLocation = val!),
               ),
               const SizedBox(height: 16),
 
@@ -262,9 +276,7 @@ class _FormReportScreenState extends State<FormReportScreen> {
               title: const Text('Kamera (Ambil Foto Langsung)'),
               onTap: () {
                 Navigator.pop(ctx);
-                _pickImage(
-                  ImageSource.camera,
-                ); // Menggunakan kamera langsung (FR-03 & Alur 5.2)
+                _pickImage(ImageSource.camera);
               },
             ),
             ListTile(

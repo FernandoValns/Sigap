@@ -11,6 +11,8 @@ class Report {
   String status; // 'Menunggu Verifikasi', 'Diproses', 'Selesai'
   Color statusColor;
   String? imagePath; // Simpan path/file foto bukti kerusakan
+  String? categoryId;
+  String? locationId;
 
   Report({
     required this.id,
@@ -23,5 +25,7 @@ class Report {
     required this.status,
     required this.statusColor,
     this.imagePath,
+    this.categoryId,
+    this.locationId,
   });
 }
