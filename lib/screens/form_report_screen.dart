@@ -3,9 +3,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 import '../models/report.dart';
 import '../data/mock_data.dart';
+
+final Geocoding geocoding = Geocoding();
 
 class FormReportScreen extends StatefulWidget {
   final Report? report;
@@ -21,15 +25,19 @@ class _FormReportScreenState extends State<FormReportScreen> {
 
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
+  late TextEditingController _gpsAddressController; // Menyimpan alamat dari GPS
 
-  List<String> get _categories => MockData.categories.map((c) => c.name).toList();
-  List<String> get _locations => MockData.locations.map((l) => l.name).toList();
-
-  late String _selectedCategory;
-  late String _selectedLocation;
+  // State berbasis ID
+  late String _selectedCategoryId;
+  String? _selectedLocationId;
   String _selectedUrgency = 'Sedang';
 
-  // State untuk menyimpan foto yang dipilih
+  // State GPS
+  double? _latitude;
+  double? _longitude;
+  bool _isLoadingLocation = false;
+
+  // State Foto
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
 
@@ -42,31 +50,111 @@ class _FormReportScreenState extends State<FormReportScreen> {
     _descriptionController = TextEditingController(
       text: widget.report?.description ?? '',
     );
+    _gpsAddressController = TextEditingController(
+      text: widget.report?.location ?? '',
+    );
 
-    _selectedCategory = _categories.isNotEmpty ? _categories.first : '';
-    _selectedLocation = _locations.isNotEmpty ? _locations.first : '';
+    // Inisialisasi ID Kategori
+    _selectedCategoryId = MockData.categories.isNotEmpty
+        ? MockData.categories.first.id
+        : '';
+
+    // Inisialisasi ID Lokasi (jika ada)
+    if (MockData.locations.isNotEmpty) {
+      _selectedLocationId = MockData.locations.first.id;
+    }
 
     if (widget.report != null) {
-      if (_categories.contains(widget.report!.category)) {
-        _selectedCategory = widget.report!.category;
+      // Set kategori berdasarkan ID saat mode edit
+      if (MockData.categories.any((c) => c.id == widget.report!.categoryId)) {
+        _selectedCategoryId = widget.report!.categoryId;
       }
-      if (_locations.contains(widget.report!.location)) {
-        _selectedLocation = widget.report!.location;
+      // Set lokasi berdasarkan ID saat mode edit
+      if (MockData.locations.any((l) => l.id == widget.report!.locationId)) {
+        _selectedLocationId = widget.report!.locationId;
       } else {
-        _selectedLocation = widget.report!.location;
+        _selectedLocationId =
+            'custom_gps'; // Jika lokasi berasal dari titik GPS kustom
       }
+
       _selectedUrgency = widget.report!.urgency;
+      _latitude = widget.report!.latitude;
+      _longitude = widget.report!.longitude;
+
       if (widget.report!.imagePath != null) {
         _selectedImage = File(widget.report!.imagePath!);
       }
     }
   }
 
-  // Fungsi Memilih Foto dari Kamera atau Galeri (FR-03 & Alur 5.2)
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _gpsAddressController.dispose();
+    super.dispose();
+  }
+
+  // --- FUNGSI DETEKSI LOKASI GPS ---
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLoadingLocation = true);
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled)
+        throw 'Layanan GPS tidak aktif. Silakan aktifkan GPS.';
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied)
+          throw 'Izin lokasi ditolak.';
+      }
+      if (permission == LocationPermission.deniedForever) {
+        throw 'Izin lokasi ditolak permanen. Ubah di pengaturan HP.';
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      _latitude = position.latitude;
+      _longitude = position.longitude;
+
+      List<Placemark> placemarks = await geocoding.placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      String detectedAddress =
+          'Titik GPS (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks.first;
+        detectedAddress =
+            '${place.street ?? ''}, ${place.subLocality ?? ''}, ${place.locality ?? ''}'
+                .replaceAll(RegExp(r'^, |, $'), '');
+      }
+
+      setState(() {
+        _selectedLocationId =
+            'custom_gps'; // Tandai bahwa lokasi dipilih via GPS
+        _gpsAddressController.text = detectedAddress;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoadingLocation = false);
+    }
+  }
+
   Future<void> _pickImage(ImageSource source) async {
     final XFile? pickedFile = await _picker.pickImage(
       source: source,
-      imageQuality: 80, // Mengurangi ukuran file foto
+      imageQuality: 80,
     );
 
     if (pickedFile != null) {
@@ -77,10 +165,8 @@ class _FormReportScreenState extends State<FormReportScreen> {
   }
 
   void _saveForm() {
-    // 1. Validasi Teks
     final isValid = _formKey.currentState!.validate();
 
-    // 2. Validasi Khusus Foto (Wajib Diunggah)
     if (_selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -92,19 +178,39 @@ class _FormReportScreenState extends State<FormReportScreen> {
     }
 
     if (isValid) {
+      // Ambil nama kategori berdasarkan ID yang dipilih
+      final selectedCatObj = MockData.categories.firstWhere(
+        (c) => c.id == _selectedCategoryId,
+        orElse: () => MockData.categories.first,
+      );
+
+      // Tentukan nama lokasi yang akan disimpan
+      String finalLocationName = _gpsAddressController.text;
+      if (_selectedLocationId != 'custom_gps') {
+        final selectedLocObj = MockData.locations.firstWhere(
+          (l) => l.id == _selectedLocationId,
+          orElse: () => MockData.locations.first,
+        );
+        finalLocationName = selectedLocObj.name;
+      }
+
       final newReport = Report(
         id:
             widget.report?.id ??
             DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
-        location: _selectedLocation,
-        category: _selectedCategory,
+        categoryId: _selectedCategoryId,
+        category: selectedCatObj.name,
+        locationId: _selectedLocationId ?? 'custom_gps',
+        location: finalLocationName,
         urgency: _selectedUrgency,
         description: _descriptionController.text,
         date: widget.report?.date ?? '25 Sep 2026',
         status: widget.report?.status ?? 'Menunggu Verifikasi',
         statusColor: widget.report?.statusColor ?? Colors.orange,
-        imagePath: _selectedImage!.path, // Menyimpan file path gambar
+        imagePath: _selectedImage!.path,
+        latitude: _latitude,
+        longitude: _longitude,
       );
 
       Navigator.pop(context, newReport);
@@ -125,13 +231,12 @@ class _FormReportScreenState extends State<FormReportScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              // --- AREA UNGGAH & PRATINJAU FOTO ---
+              // --- AREA FOTO ---
               const Text(
                 'Foto Bukti Kerusakan*',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               const SizedBox(height: 8),
-
               GestureDetector(
                 onTap: () => _showImagePickerDialog(),
                 child: Container(
@@ -159,9 +264,9 @@ class _FormReportScreenState extends State<FormReportScreen> {
                                   width: double.infinity,
                                 ),
                         )
-                      : Column(
+                      : const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
+                          children: [
                             Icon(
                               Icons.add_a_photo,
                               size: 50,
@@ -178,6 +283,7 @@ class _FormReportScreenState extends State<FormReportScreen> {
               ),
               const SizedBox(height: 16),
 
+              // --- JUDUL ---
               TextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
@@ -190,33 +296,121 @@ class _FormReportScreenState extends State<FormReportScreen> {
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                value: _selectedLocation,
-                decoration: const InputDecoration(
-                  labelText: 'Lokasi / Gedung*',
-                  border: OutlineInputBorder(),
-                ),
-                items: _locations
-                    .map((l) => DropdownMenuItem(value: l, child: Text(l, overflow: TextOverflow.ellipsis,)))
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedLocation = val!),
+              // --- DROPDOWN LOKASI / GEDUNG BERBASIS ID + TOMBOL GPS ---
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      value: _selectedLocationId,
+                      decoration: const InputDecoration(
+                        labelText: 'Lokasi / Gedung*',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        // Opsi gedung dari MockData
+                        ...MockData.locations.map(
+                          (loc) => DropdownMenuItem(
+                            value: loc.id,
+                            child: Text(
+                              loc.name,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        // Opsi tambahan jika memakai titik GPS
+                        const DropdownMenuItem(
+                          value: 'custom_gps',
+                          child: Text(
+                            '📍 Lokasi Terdeteksi GPS',
+                            style: TextStyle(color: Colors.teal),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        setState(() {
+                          _selectedLocationId = val;
+                          if (val != 'custom_gps') {
+                            // Reset teks alamat kustom jika memilih gedung dari daftar
+                            final loc = MockData.locations.firstWhere(
+                              (l) => l.id == val,
+                            );
+                            _gpsAddressController.text = loc.name;
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Tombol pemicu GPS
+                  SizedBox(
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: _isLoadingLocation
+                          ? null
+                          : _getCurrentLocation,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isLoadingLocation
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Icon(Icons.my_location, color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
+
+              // Jika memilih lokasi via GPS, tampilkan kolom detail alamat yang bisa diedit
+              if (_selectedLocationId == 'custom_gps') ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _gpsAddressController,
+                  decoration: InputDecoration(
+                    labelText: 'Detail Alamat / Titik GPS*',
+                    border: const OutlineInputBorder(),
+                    helperText: (_latitude != null && _longitude != null)
+                        ? 'Koordinat: ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}'
+                        : null,
+                  ),
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? 'Detail lokasi wajib diisi'
+                      : null,
+                ),
+              ],
               const SizedBox(height: 16),
 
+              // --- DROPDOWN KATEGORI BERBASIS ID ---
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                value: _selectedCategoryId,
                 decoration: const InputDecoration(
                   labelText: 'Kategori Kerusakan',
                   border: OutlineInputBorder(),
                 ),
-                items: _categories
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                items: MockData.categories
+                    .map(
+                      (cat) => DropdownMenuItem(
+                        value: cat.id,
+                        child: Text(cat.name),
+                      ),
+                    )
                     .toList(),
-                onChanged: (val) => setState(() => _selectedCategory = val!),
+                onChanged: (val) => setState(() => _selectedCategoryId = val!),
               ),
               const SizedBox(height: 16),
 
+              // --- URGENSI ---
               DropdownButtonFormField<String>(
                 value: _selectedUrgency,
                 decoration: const InputDecoration(
@@ -230,6 +424,7 @@ class _FormReportScreenState extends State<FormReportScreen> {
               ),
               const SizedBox(height: 16),
 
+              // --- DESKRIPSI ---
               TextFormField(
                 controller: _descriptionController,
                 maxLines: 3,
@@ -264,7 +459,6 @@ class _FormReportScreenState extends State<FormReportScreen> {
     );
   }
 
-  // Dialog Pilihan Sumber Foto (Kamera / Galeri)
   void _showImagePickerDialog() {
     showModalBottomSheet(
       context: context,
